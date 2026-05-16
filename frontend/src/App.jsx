@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useContext } from "react";
+import { TodoContext } from "./context/TodoContext.jsx";
 
-//  const API = "http://localhost:5000/api/todo_task";
+ const API = "http://localhost:5000/api/todo_task";
 
-const API = "https://todoapplicationupdated.onrender.com/api/todo_task";
+// const API = "https://todoapplicationupdated.onrender.com/api/todo_task";
 
  
 function App() {
-  const [tasks, setTasks] = useState([]);
+  const { tasks, setTasks } = useContext(TodoContext);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueByDate, setDueByDate] = useState("");
