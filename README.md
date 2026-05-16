@@ -27,6 +27,7 @@ A full-stack MERN (MongoDB, Express.js, React.js, Node.js) Todo Application that
 - MongoDB
 
 Backend Setup
+-----
 Step 1: Open Backend Folder
 cd backend
 
@@ -39,13 +40,17 @@ PORT=5000
 MONGO_URI=paste the mongodb connection string.
 
 
-
-Step 5: Run Backend Server
+Step 4: Run Backend Server
 npm start
 
+
+
 Frontend Setup
+-----
+
 Step 1: Open Frontend Folder
 cd frontend
+
 Step 2: Install Dependencies
 npm install
 
