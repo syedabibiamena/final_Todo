@@ -1,99 +1,153 @@
-import Todo from "../models/todoModel.js";
+import {
+  createTodoService,
+  getTodosService,
+  getTodoByIdService,
+  updateTodoService,
+  deleteTodoService,
+} from "../services/todoService.js";
 
-export const creating_a_Task = async (req, res, next) => {
+// Create Task
+export const createTask = async (req, res) => {
   try {
     const { title, description, dueByDate } = req.body;
 
-    if (!title) {
-      return res.status(400).json({ message: "Title is must" });
+    if (!title || !description || !dueByDate) {
+      return res.status(400).json({
+        message: "Please provide all required task details.",
+      });
     }
 
-    const task = await Todo.create({ title, description, dueByDate });
+    const newTask = await createTodoService({
+      title,
+      description,
+      dueByDate,
+    });
 
-    res.status(201).json(task);
+    res.status(201).json(newTask);
   } catch (error) {
-    next(error);
-  }
-  
-};
-
-
-export const geting_a_Tasks = async (req, res, next) => {
-  try {
-    const { q } = req.query;
-
-    let query = {};
-
-    if (q) {
-      query.title = { $regex: q, $options: "i" };
-    }
-
-    const tasks = await Todo.find(query);
-    res.json(tasks);
-  } catch (error) {
-    next(error);
+    res.status(500).json({
+      message: "Unable to create the task.",
+    });
   }
 };
 
-export const get_a_Single_Task = async (req, res, next) => {
+// Get All Tasks
+export const getTasks = async (req, res) => {
   try {
-    const task = await Todo.findById(req.params.id);
+    const searchText = req.query.q || "";
+
+    let filter = {};
+
+    if (searchText) {
+      filter.title = {
+        $regex: searchText,
+        $options: "i",
+      };
+    }
+
+    const tasks = await getTodosService(filter);
+
+    res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({
+      message: "Unable to fetch tasks.",
+    });
+  }
+};
+
+// Get Single Task
+export const getTask = async (req, res) => {
+  try {
+    const task = await getTodoByIdService(req.params.id);
 
     if (!task) {
-      return res.status(404).json({ message: "Task not  is found" });
+      return res.status(404).json({
+        message: "Task not found.",
+      });
     }
 
-    res.json(task);
+    res.status(200).json(task);
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      message: "Unable to fetch task details.",
+    });
   }
 };
 
-
-export const update_a_Task = async (req, res, next) => {
+// Update Task
+export const updateTask = async (req, res) => {
   try {
-    const task = await Todo.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const { title, description, dueByDate } = req.body;
 
-    if (!task) {
-      return res.status(404).json({ message: "Task is  not  found" });
+    if (!title || !description || !dueByDate) {
+      return res.status(400).json({
+        message: "All task fields are required.",
+      });
     }
 
-    res.json(task);
+    const updatedTask = await updateTodoService(req.params.id, {
+      title,
+      description,
+      dueByDate,
+    });
+
+    if (!updatedTask) {
+      return res.status(404).json({
+        message: "Task not found.",
+      });
+    }
+
+    res.status(200).json(updatedTask);
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      message: "Unable to update the task.",
+    });
   }
 };
 
-export const delete_a_Task = async (req, res, next) => {
+// Delete Task
+export const deleteTask = async (req, res) => {
   try {
-    const task = await Todo.findByIdAndDelete(req.params.id);
+    const deletedTask = await deleteTodoService(req.params.id);
 
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
+    if (!deletedTask) {
+      return res.status(404).json({
+        message: "Task not found.",
+      });
     }
 
-    res.json({ message: "Task deleted successfully" });
+    res.status(200).json({
+      message: "Task deleted successfully.",
+    });
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      message: "Unable to delete the task.",
+    });
   }
 };
 
-export const updating_Status = async (req, res, next) => {
+// Update Task Status
+export const updateStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    const task = await Todo.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const task = await getTodoByIdService(req.params.id);
 
-    res.json(task);
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found.",
+      });
+    }
+
+    const updatedTask = await updateTodoService(req.params.id, {
+      ...task._doc,
+      status,
+    });
+
+    res.status(200).json(updatedTask);
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      message: "Unable to update task status.",
+    });
   }
 };

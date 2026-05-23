@@ -1,53 +1,53 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
-import { useContext } from "react";
 import { TodoContext } from "./context/TodoContext.jsx";
 
- const API = "http://localhost:5000/api/todo_task";
+const API = import.meta.env.VITE_API_URL;
 
-// const API = "https://todoapplicationupdated.onrender.com/api/todo_task";
-
- 
 function App() {
   const { tasks, setTasks } = useContext(TodoContext);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueByDate, setDueByDate] = useState("");
-  const [editId, setEditId] = useState(null);
-  const [editText, setEditText] = useState("");
-  const [search, setSearch] = useState("");
 
-  
+  const [editId, setEditId] = useState(null);
+
+  const [editTask, setEditTask] = useState({
+    title: "",
+    description: "",
+    dueByDate: "",
+  });
+
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  
-  const fetchTasks = async () => {
+  const loadTasks = async () => {
     try {
       setLoading(true);
+
+      const response = await axios.get(API);
+
+      setTasks(response.data);
       setError("");
-      const res = await axios.get(API);
-      setTasks(res.data);
-    } catch (err) {
-      setError("Failed to fetch tasks");
+    } catch (error) {
+      setError("Unable to fetch tasks.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTasks();
+    loadTasks();
   }, []);
 
-  
   const addTask = async () => {
     try {
-      if (!title.trim()) {
-        setError("Title is required");
+      if (!title || !description || !dueByDate) {
+        setError("Please fill all task fields.");
         return;
       }
-
-      setError("");
 
       await axios.post(API, {
         title,
@@ -59,90 +59,110 @@ function App() {
       setDescription("");
       setDueByDate("");
 
-      fetchTasks();
-    } catch (err) {
-      setError("Failed to add task");
+      loadTasks();
+    } catch (error) {
+      setError("Unable to add task.");
     }
   };
 
-  
-  const delete_a_Task = async (id) => {
+  const deleteTask = async (id) => {
     try {
       await axios.delete(`${API}/${id}`);
-      fetchTasks();
-    } catch (err) {
-      setError("Failed to delete task");
+      loadTasks();
+    } catch (error) {
+      setError("Unable to delete task.");
     }
   };
 
-  
   const startEdit = (task) => {
     setEditId(task._id);
-    setEditText(task.title);
+
+    setEditTask({
+      title: task.title || "",
+      description: task.description || "",
+      dueByDate: task.dueByDate
+        ? task.dueByDate.split("T")[0]
+        : "",
+    });
   };
 
-  
-  const update_a_Task = async (id) => {
+  const updateTask = async (id) => {
     try {
+      if (
+        !editTask.title ||
+        !editTask.description ||
+        !editTask.dueByDate
+      ) {
+        setError("Please fill all task fields.");
+        return;
+      }
+
       await axios.put(`${API}/${id}`, {
-        title: editText,
+        title: editTask.title,
+        description: editTask.description,
+        dueByDate: editTask.dueByDate,
       });
+
       setEditId(null);
-      setEditText("");
-      fetchTasks();
-    } catch (err) {
-      setError("Failed to update task");
+
+      setEditTask({
+        title: "",
+        description: "",
+        dueByDate: "",
+      });
+
+      loadTasks();
+    } catch (error) {
+      setError("Unable to update task.");
     }
   };
 
-  
   const toggleStatus = async (task) => {
     try {
-      const newStatus =
-        task.status === "completed" ? "pending" : "completed";
+      const updatedStatus =
+        task.status === "completed"
+          ? "pending"
+          : "completed";
 
       await axios.patch(`${API}/${task._id}/status`, {
-        status: newStatus,
+        status: updatedStatus,
       });
 
-      fetchTasks();
-    } catch (err) {
-      setError("Failed to update status");
+      loadTasks();
+    } catch (error) {
+      setError("Unable to update task status.");
     }
   };
 
-  
   const searchTasks = async () => {
     try {
-      const res = await axios.get(`${API}?q=${search}`);
-      setTasks(res.data);
-    } catch (err) {
-      setError("Search failed");
+      const response = await axios.get(`${API}?q=${search}`);
+
+      setTasks(response.data);
+    } catch (error) {
+      setError("Unable to search tasks.");
     }
   };
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.heading}>To-Do App</h1>
+      <h1 style={styles.heading}>Todo Application</h1>
 
-     
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-     
-      {loading && <p>Loading...</p>}
+      {loading && <p>Loading tasks...</p>}
 
-      
       <div style={styles.inputBox}>
         <input
           style={styles.input}
-          placeholder="Title"
+          placeholder="Task Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
 
         <input
           style={styles.input}
-          placeholder="Description"
+          placeholder="Task Description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -155,11 +175,10 @@ function App() {
         />
 
         <button style={styles.addBtn} onClick={addTask}>
-          Add
+          Add Task
         </button>
       </div>
 
-      
       <div style={styles.searchBox}>
         <input
           style={styles.input}
@@ -167,183 +186,225 @@ function App() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+
         <button style={styles.searchBtn} onClick={searchTasks}>
           Search
         </button>
-        <button style={styles.resetBtn} onClick={fetchTasks}>
-          Reset
-        </button>
-      </div>
 
-      
-      {tasks.length === 0 && !loading && <p>No tasks found</p>}
+       <button
+  style={styles.resetBtn}
+  onClick={() => {
+    setSearch("");
+    loadTasks();
+  }}
+>
+  Reset
+</button></div>
 
-      <div>
-        {tasks.map((task) => (
-          <div key={task._id} style={styles.card}>
-            <div>
-              {editId === task._id ? (
-                <input
-                  style={styles.input}
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                />
-              ) : (
-                <>
-                  <h3
-                    style={{
-                      textDecoration:
-                        task.status === "completed"
-                          ? "line-through"
-                          : "none",
-                    }}
-                  >
-                    {task.title}
-                  </h3>
-                  <p>{task.description}</p>
-                  <small>
-                    📅{" "}
-                    {task.dueByDate
-                      ? new Date(task.dueByDate).toLocaleDateString()
-                      : "No date"}
-                  </small>
-                </>
-              )}
+      {tasks.map((task) => (
+        <div key={task._id} style={styles.card}>
+          {editId === task._id ? (
+            <div style={styles.inputBox}>
+              <input
+                style={styles.input}
+                value={editTask.title}
+                onChange={(e) =>
+                  setEditTask({
+                    ...editTask,
+                    title: e.target.value,
+                  })
+                }
+              />
+
+              <input
+                style={styles.input}
+                value={editTask.description}
+                onChange={(e) =>
+                  setEditTask({
+                    ...editTask,
+                    description: e.target.value,
+                  })
+                }
+              />
+
+              <input
+                style={styles.input}
+                type="date"
+                value={editTask.dueByDate}
+                onChange={(e) =>
+                  setEditTask({
+                    ...editTask,
+                    dueByDate: e.target.value,
+                  })
+                }
+              />
+
+              <button
+                style={styles.saveBtn}
+                onClick={() => updateTask(task._id)}
+              >
+                Save
+              </button>
             </div>
+          ) : (
+            <>
+              <h3>{task.title}</h3>
+              <p>{task.description}</p>
 
-            <div>
-              {editId === task._id ? (
-                <button
-                  style={styles.saveBtn}
-                  onClick={() => update_a_Task(task._id)}
-                >
-                  Save
-                </button>
-              ) : (
+              <small>
+                Due Date:
+                {" "}
+                {task.dueByDate
+                  ? new Date(task.dueByDate).toLocaleDateString()
+                  : "No date"}
+              </small>
+
+              <p>Status: {task.status}</p>
+
+              <div style={styles.buttonGroup}>
                 <button
                   style={styles.editBtn}
                   onClick={() => startEdit(task)}
                 >
                   Edit
                 </button>
-              )}
 
-              <button
-                style={styles.deleteBtn}
-                onClick={() => delete_a_Task(task._id)}
-              >
-                Delete
-              </button>
+                <button
+                  style={styles.deleteBtn}
+                  onClick={() => deleteTask(task._id)}
+                >
+                  Delete
+                </button>
 
-              
-              <button
-                style={styles.Btn}
-                 onClick={() => toggleStatus(task)}>
-                {task.status === "completed" ? "Undo" : "Complete"}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+                <button
+                  style={styles.completeBtn}
+                  onClick={() => toggleStatus(task)}
+                >
+                  {task.status === "completed"
+                    ? "Undo"
+                    : "Complete"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
 
 const styles = {
   container: {
-    maxWidth: "600px",
-    margin: "40px auto",
-    padding: "20px",
-    background: "#f9f9f9",
-    borderRadius: "12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-    fontFamily: "Arial",
+    maxWidth: "700px",
+    margin: "2rem auto",
+    padding: "1.5rem",
+    fontFamily: "Arial, sans-serif",
   },
+
   heading: {
     textAlign: "center",
-    marginBottom: "20px",
+    marginBottom: "1.5rem",
+    color: "#333",
   },
+
   inputBox: {
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
-    marginBottom: "20px",
+    gap: "0.8rem",
+    marginBottom: "1rem",
   },
-  searchBox: {
-    display: "flex",
-    gap: "10px",
-    marginBottom: "20px",
-  },
+
   input: {
-    padding: "10px",
-    borderRadius: "6px",
+    padding: "0.8rem",
     border: "1px solid #ccc",
+    borderRadius: "6px",
+    fontSize: "1rem",
   },
+
+  card: {
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+    padding: "1rem",
+    marginBottom: "1rem",
+    backgroundColor: "#fafafa",
+  },
+
+  buttonGroup: {
+    display: "flex",
+    gap: "0.5rem",
+    marginTop: "0.8rem",
+    flexWrap: "wrap",
+  },
+
   addBtn: {
-    background: "#4CAF50",
+    padding: "0.7rem",
+    backgroundColor: "#2563eb",
     color: "white",
-    padding: "10px",
     border: "none",
     borderRadius: "6px",
     cursor: "pointer",
   },
-  Btn: {
-    background: "Blue",
-    color: "white",
-    border: "none",
-    padding: "5px 10px",
-    marginRight: "5px",
-    borderRadius: "5px",
-    
-  },
-  searchBtn: {
-    background: "#2196F3",
-    color: "white",
-    padding: "10px",
-    border: "none",
-    borderRadius: "6px",
-  },
-  resetBtn: {
-    background: "#9E9E9E",
-    color: "white",
-    padding: "10px",
-    border: "none",
-    borderRadius: "6px",
-  },
-  card: {
-    background: "white",
-    padding: "15px",
-    marginBottom: "10px",
-    borderRadius: "8px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-  },
+
   editBtn: {
-    background: "orange",
+    padding: "0.5rem 0.8rem",
+    backgroundColor: "#f59e0b",
     color: "white",
     border: "none",
-    padding: "5px 10px",
-    marginRight: "5px",
-    borderRadius: "5px",
+    borderRadius: "6px",
+    cursor: "pointer",
   },
-  saveBtn: {
-    background: "green",
-    color: "white",
-    border: "none",
-    padding: "5px 10px",
-    marginRight: "5px",
-    borderRadius: "5px",
-  },
+
   deleteBtn: {
-  background: "red",
-  color: "white",
-  border: "none",
-  padding: "5px 10px",
-  borderRadius: "5px",
-  marginRight: "5px"   
-},
+    padding: "0.5rem 0.8rem",
+    backgroundColor: "#ef4444",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+
+  saveBtn: {
+    padding: "0.5rem 0.8rem",
+    backgroundColor: "#10b981",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+
+  searchBtn: {
+    padding: "0.6rem 1rem",
+    backgroundColor: "#333",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+
+  resetBtn: {
+    padding: "0.6rem 1rem",
+    backgroundColor: "#6b7280",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+
+  completeBtn: {
+    padding: "0.5rem 0.8rem",
+    backgroundColor: "#14b8a6",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+
+  searchBox: {
+    display: "flex",
+    gap: "0.5rem",
+    marginBottom: "1.5rem",
+    flexWrap: "wrap",
+  },
 };
 
 export default App;

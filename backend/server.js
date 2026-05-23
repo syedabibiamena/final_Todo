@@ -1,44 +1,36 @@
 import express from "express";
-import dotenv from "dotenv";
+import mongoose from "mongoose";
 import cors from "cors";
-import connecttoDB from "./config/db.js";
+import dotenv from "dotenv";
+
 import todoRoutes from "./routes/todoRoutes.js";
 
 dotenv.config();
-connecttoDB();
 
 const app = express();
 
-// app.use(cors());
-
-app.use(cors({ origin: "*" }));
+// Middleware
+app.use(cors());
 app.use(express.json());
 
+// Test Route
 app.get("/", (req, res) => {
-  res.send("API Running");
+  res.send("Backend Running Successfully");
 });
 
-app.use("/api/todo_task", todoRoutes);
+// Todo Routes
+app.use("/api/todos", todoRoutes);
 
-app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
+// MongoDB Connection
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("MongoDB Connected Successfully");
 
-
-  res.status(statusCode).json({
-    success: false,
-    message: err.message || "Internal Server Error",
+    app.listen(process.env.PORT || 5000, () => {
+      console.log("Server running on port 5000");
+    });
+  })
+  .catch((error) => {
+    console.log(error);
   });
-});
-
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found",
-  });
-});
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running up and running on port ${PORT}`);
-});
